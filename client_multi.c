@@ -14,7 +14,6 @@
 #define NCHAN 256	// # of channels on BF node side
 #define NBEAMS 256	// # of beams on BF side
 #define NBEAMSTOSEND 64	// # of beams sent to the search node
-#define NTIMESAMPLES 1	// in case ring buffer has > 1 time sample (not implemented)
 #define NTHREADS NBEAMS/NBEAMSTOSEND
 
 #define BUF_SIZE NTIMES*NCHAN*NBEAMSTOSEND // size of TCP packet
@@ -22,7 +21,7 @@
 void *myThreadFun(void *vargp) {
 
 	char *string = (char *) vargp;
-	struct sockaddr_in addr, cl_addr;  
+	struct sockaddr_in addr;  
 	int sockfd, ret;  
 	struct hostent * server;
 	char * serverAddr;
@@ -35,7 +34,7 @@ void *myThreadFun(void *vargp) {
 	}  
 	printf("Socket created...\n");   
 
-// LIST OF SERVERS TO SEND DATA TO AND FORMATTING ADDRESSES
+// LIST OF SERVERS TO SEND DATA TO AND FORMATTING ADDRESSES (DEPENDING ON BEAM NUMBERS)
 	serverAddr = "131.215.193.190";
 	memset(&addr, 0, sizeof(addr));  
 	addr.sin_family = AF_INET;  
@@ -63,7 +62,7 @@ void *myThreadFun(void *vargp) {
 int main(int argc, char**argv) {  
 
 	int nSearchNode;
-	char *string_reordered = malloc(NTIMES*NCHAN*NBEAMS + 1);
+	char *string_reordered = malloc(NTIMES*NCHAN*NBEAMS + 1);	// reshuffle data array to conveniently send data
 	pthread_t tid;
 
 // HERE IS A WHILE(1) -> keep reading new buffers as they come
@@ -92,7 +91,7 @@ int main(int argc, char**argv) {
 // HERE PUT SEARCH SERVER TO SEND DATA TO (LIST OF ALL SEARCH SERVERS)
 // SEND DATA TO EACH SEARCH SERVER THROUGH MULTIPLE THREADS
 	for (int i = 0; i < NTHREADS; i++){
-		pthread_create(&tid, NULL, myThreadFun, (void *) string + BUF_SIZE*i);
+		pthread_create(&tid, NULL, myThreadFun, (void *) string_reordered + BUF_SIZE*i);
 	}
 	
 	pthread_exit(NULL);
