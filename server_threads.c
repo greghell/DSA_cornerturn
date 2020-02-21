@@ -17,11 +17,10 @@ https://dzone.com/articles/parallel-tcpip-socket-server-with-multi-threading
 #define NTIMES 4096	// # of time samples (assuming 1ms sampling period)
 #define NCHAN 256	// # of channels on BF node side
 #define NBEAMSTOSEND 64	// # of beams sent to the search node
-#define NCHANTOT NCHAN*8
+#define NCHANTOT NCHAN*8	// total number of channels per beam
 
 #define BUF_SIZE NTIMES*NCHAN*NBEAMSTOSEND // size of TCP packet
 #define DADA_BUF_SIZE NTIMES*NCHANTOT*NBEAMSTOSEND // size of TCP packet
-
 
 char buff[DADA_BUF_SIZE];
 int cnt_threads = 0;
@@ -44,9 +43,7 @@ void * process(void * ptr)
 	if (!ptr) pthread_exit(0); 
 	conn = (connection_t *)ptr;
 
-//	addr = (&conn->address)->sin_addr.s_addr;
 	addr = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
-	printf("addr = %ld\n",addr);
 	inet_ntop(AF_INET, &addr, clientAddr, CLADDR_LEN);
 	printf("received data from %s\n",clientAddr);
 	
@@ -54,10 +51,9 @@ void * process(void * ptr)
 	
 	/* read message */
 	read(conn->sock, buffer, BUF_SIZE);
-//	printf("Received data from %s : %s\n", clientAddr, buffer);
 	
 /* change global array */
-	if (strcmp(clientAddr,"131.215.193.190")==0) {		
+	if (strcmp(clientAddr,"192.168.40.11")==0) {		
 		int nBandNum = 0;
 		for (int i = 0; i < NBEAMSTOSEND; i++) {
 			for (int j = 0; j < NCHAN*NTIMES; j++) {
@@ -132,9 +128,6 @@ int main(int argc, char ** argv)
 		connection->sock = accept(sock, (struct sockaddr *) &connection->address, &cli_len);
 		connection->addr_len = cli_len;
 		
-//		inet_ntop(AF_INET, &(connection->address.sin_addr), clientAddr, CLADDR_LEN);
-//		printf("Receiving data from %s\n", clientAddr);
-		
 		if (connection->sock <= 0)
 		{
 			printf("Error accepting connection!\n");
@@ -145,7 +138,6 @@ int main(int argc, char ** argv)
 			printf("Creating receive thread\n");
 			pthread_create(&thread, 0, process, (void *)connection);
 			pthread_join(thread, NULL);
-//			pthread_detach(thread);
 		}
 	}
 	

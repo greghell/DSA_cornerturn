@@ -109,7 +109,5 @@ int main(int argc, char**argv) {
 		pthread_join(tid, NULL);
 	}
 	
-//	pthread_exit(NULL);
-	
 	return 0;    
 }  
