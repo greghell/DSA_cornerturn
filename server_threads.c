@@ -7,9 +7,9 @@ https://dzone.com/articles/parallel-tcpip-socket-server-with-multi-threading
 #include"sys/types.h"
 #include"sys/socket.h"
 #include"string.h"
-#include <linux/in.h>
-//#include"netinet/in.h"
 #include<pthread.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #define PORT 4444
 #define CLADDR_LEN 100
@@ -30,7 +30,7 @@ typedef struct
 {
 	int sock;
 	struct sockaddr_in address;
-	int addr_len;
+	socklen_t addr_len;
 } connection_t;
 
 void * process(void * ptr)
@@ -39,21 +39,16 @@ void * process(void * ptr)
 	char * buffer;
 	int len;
 	connection_t * conn;
-	long addr = 0;
+	long addr;
 
 	if (!ptr) pthread_exit(0); 
 	conn = (connection_t *)ptr;
 
 //	addr = (&conn->address)->sin_addr.s_addr;
 	addr = (long)((struct sockaddr_in *)&conn->address)->sin_addr.s_addr;
-
-	printf("received message from %d.%d.%d.%d\n",
-			(int)((addr      ) & 0xff),
-			(int)((addr >>  8) & 0xff),
-			(int)((addr >> 16) & 0xff),
-			(int)((addr >> 24) & 0xff));
-
+	printf("addr = %ld\n",addr);
 	inet_ntop(AF_INET, &addr, clientAddr, CLADDR_LEN);
+	printf("received data from %s\n",clientAddr);
 	
 	buffer = (char *)malloc((BUF_SIZE+1)*sizeof(char));
 	
@@ -108,9 +103,12 @@ int main(int argc, char ** argv)
 	}
 	printf("socket created\n");
 
-	memset(&address, 0, sizeof(address));
+	memset(&address, 0, sizeof(struct sockaddr_in));
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
+//	address.sin_addr.s_addr = INADDR_ANY;
+//	address.sin_addr.s_addr = inet_addr("131.215.193.190");
+//	address.sin_addr.s_addr = inet_addr("127.0.0.1");
+	address.sin_addr.s_addr = inet_addr("192.168.40.11");
 	address.sin_port = PORT;
 	if (bind(sock, (struct sockaddr *)&address, sizeof(struct sockaddr_in)) < 0)
 	{
@@ -126,10 +124,13 @@ int main(int argc, char ** argv)
 	}
 	printf("socket ready and listening\n");
 	
+	socklen_t cli_len=sizeof(struct sockaddr);
+	
 	while (1)
 	{
 		connection = (connection_t *)malloc(sizeof(connection_t));
-		connection->sock = accept(sock, (struct sockaddr *) &connection->address, &connection->addr_len);
+		connection->sock = accept(sock, (struct sockaddr *) &connection->address, &cli_len);
+		connection->addr_len = cli_len;
 		
 //		inet_ntop(AF_INET, &(connection->address.sin_addr), clientAddr, CLADDR_LEN);
 //		printf("Receiving data from %s\n", clientAddr);
@@ -143,7 +144,8 @@ int main(int argc, char ** argv)
 		{
 			printf("Creating receive thread\n");
 			pthread_create(&thread, 0, process, (void *)connection);
-			pthread_detach(thread);
+			pthread_join(thread, NULL);
+//			pthread_detach(thread);
 		}
 	}
 	

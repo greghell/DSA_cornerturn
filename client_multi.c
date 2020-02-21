@@ -7,6 +7,7 @@
 #include"netdb.h"
 #include <unistd.h>
 #include <pthread.h>
+#include <arpa/inet.h>
   
 #define PORT 4444 
 
@@ -18,11 +19,11 @@
 
 #define BUF_SIZE NTIMES*NCHAN*NBEAMSTOSEND // size of TCP packet
 
-struct conn_thread
+typedef struct
 {
 	int idx;
 	char* arr;
-};
+}conn_thread;
 
 void *myThreadFun(void *vargp) {
 
@@ -43,14 +44,16 @@ void *myThreadFun(void *vargp) {
 	printf("Socket created...\n");   
 
 // LIST OF SERVERS TO SEND DATA TO AND FORMATTING ADDRESSES (DEPENDING ON BEAM NUMBERS)
-	serverAddr = "131.215.193.190";
-	memset(&addr, 0, sizeof(addr));  
+//	serverAddr = "131.215.193.190";
+//	serverAddr = "127.0.0.1";
+	serverAddr = "192.168.40.11";
+	memset(&addr, 0, sizeof(struct sockaddr_in));  
 	addr.sin_family = AF_INET;  
 	addr.sin_addr.s_addr = inet_addr(serverAddr);
 	addr.sin_port = PORT;     
 
 // CONNECT SOCKET
-	ret = connect(sockfd, (struct sockaddr *) &addr, sizeof(addr));  
+	ret = connect(sockfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in));  
 	if (ret < 0) {  
 		printf("Error connecting to the server!\n");  
 		exit(1);  
@@ -58,7 +61,7 @@ void *myThreadFun(void *vargp) {
 	printf("Connected to the server...\n");  
 	
 // SEND DATA
-	ret = sendto(sockfd, string, BUF_SIZE, 0, (struct sockaddr *) &addr, sizeof(addr));  
+	ret = sendto(sockfd, string, BUF_SIZE, 0, (struct sockaddr *) &addr, sizeof(struct sockaddr_in));  
 	if (ret < 0) {  
 		printf("Error sending data!\n\t");  
 	}
@@ -103,9 +106,10 @@ int main(int argc, char**argv) {
 		co->idx = i;
 		co->arr = string_reordered + BUF_SIZE*i;
 		pthread_create(&tid, NULL, myThreadFun, (void *) co);
+		pthread_join(tid, NULL);
 	}
 	
-	pthread_exit(NULL);
+//	pthread_exit(NULL);
 	
 	return 0;    
 }  
