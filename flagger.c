@@ -35,6 +35,31 @@
 #define HDR_SIZE 4096
 #define BUF_SIZE NTIMES*NCHAN*NBEAMS // size of TCP packet
 
+
+void swap(char *p,char *q) {
+   char t;
+   
+   t=*p; 
+   *p=*q; 
+   *q=t;
+}
+
+double medval(double a[],int n) { 
+	int i,j;
+	char tmp[n];
+	for (i = 0;i < n;i++)
+		tmp[i] = a[i];
+	
+	for(i = 0;i < n-1;i++) {
+		for(j = 0;j < n-i-1;j++) {
+			if(tmp[j] > tmp[j+1])
+				swap(&tmp[j],&tmp[j+1]);
+		}
+	}
+	return tmp[(n+1)/2-1];
+}
+
+
 int main(int argc, char**argv)
 {
 
@@ -99,10 +124,14 @@ int main(int argc, char**argv)
 ////////////////
 	
 	
-	char skarray[NBEAMS*NCHAN+1];	// array with SK values -- size NCHANS * NBEAMS
+	double skarray[NBEAMS*NCHAN+1];	// array with SK values -- size NCHANS * NBEAMS
 	double S1 = 0;
 	double S2 = 0;
-	double nThreshUp = 50;
+	double nThreshUp = 50;	// Threshold to apply to SK (empirical estimation)
+	
+	double avgspec[NBEAMS*NCHAN+1];	// spectrum over all beams to estimate median filter
+	double baselinecorrec[NBEAMS*NCHAN+1];	// spectrum over all beams to estimate median filter
+	int nFiltSize = 21;
 	
 	
 	
@@ -116,8 +145,7 @@ int main(int argc, char**argv)
 		ipcio_close_block_read (hdu_in->data_block, bytes_read);
 		
 		
-		
-		// compute SK
+		// compute SK and averaged spectrum
 		S1 = 0;
 		S2 = 0;
 		double sampval = 0;
@@ -126,6 +154,7 @@ int main(int argc, char**argv)
 			for (int k = 0; k < NCHAN; k++){
 				for (int j = 0; j < NTIMES; j++){
 					sampval = (double)in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k];
+					avgspec[i*(int)(NCHAN) + k] += sampval / NTIMES;
 					S1 += sampval;
 					S2 += sampval * sampval;
 					skarray[i*(int)(NCHAN) + k] = (double)((M*N+1) / (M-1) * ( (M*S2)/(S1*S1) - 1 ));
@@ -136,6 +165,11 @@ int main(int argc, char**argv)
 		}
 		printf ("has computed SK.\n");
 		
+		// compute baseline correction
+		for (int i = 0; i < NBEAMS*NCHAN-nFiltSize; i++)
+			baselinecorrec[i] = medval(&avgspec[i],nFiltSize);
+		
+		
 		// compare SK values to threshold and
 		// replace thresholded channels with noise or 0
 		
@@ -143,7 +177,7 @@ int main(int argc, char**argv)
 			for (int k = 0; k < NCHAN; k++){
 				if (skarray[i*(int)(NCHAN) + k] > nThreshUp){
 					for (int j = 0; j < NTIMES; j++){
-						in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k] = (char)(20 * rand() / ( (double)RAND_MAX ) );
+						in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k] = (char)(20 * rand() / ( (double)RAND_MAX ) + 10.);
 						// in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k] = 0;
 					}
 				}
@@ -151,7 +185,18 @@ int main(int argc, char**argv)
 		}
 		printf ("has replaced values.\n");
 		
+		// apply baseline correction
+		/*
+		for (int i = 0; i < NBEAMS; i++){
+			for (int k = 0; k < NCHAN; k++){
+				for (int j = 0; j < NTIMES; j++){
+					in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k] = (char)(in_data[i*(int)(NCHAN*NTIMES)+j*(int)NCHAN+k] / (char)baselinecorrec[i*(int)NCHAN+k]);
+				}
+			}
+		}
 		
+		printf ("baseline correction applied.\n");
+		*/
 		
 		//// OUTPUT BUFFER
 		char * header_out = ipcbuf_get_next_write (hdu_out->header_block);
