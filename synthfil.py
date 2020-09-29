@@ -128,6 +128,9 @@ for k in range(int(args.nBeams)):
     offBeam = np.random.normal(0.,5.)*np.ones(nChans);
     print("generating beam #"+str(k+1)+" / "+str(int(args.nBeams)));
     for kk in range(int(args.nInt)):
-        (spec+np.random.normal(0.,10.,np.size(spec))+offBeam).astype('uint8').tofile(outfile);
+        sptmp = (spec+np.random.normal(0.,10.,np.size(spec))+offBeam).astype('uint8');
+        sptmp = np.where(sptmp>255,255,sptmp);
+        sptmp = np.where(sptmp<0,0,sptmp);
+        sptmp.astype('uint8').tofile(outfile);
     
 outfile.close()
