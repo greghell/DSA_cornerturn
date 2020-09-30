@@ -66,10 +66,11 @@ def to_sigproc_keyword(keyword, value=None):
 
 
 parser = argparse.ArgumentParser(description="Creates DSA-like multi-beam synthetic data");
-parser.add_argument("-o", type=str, dest='outfil', help="output .FIL file");
+parser.add_argument("-o", type=str, dest='outfil', help="output .FIL file", default="test.fil");
 parser.add_argument("-b", type=int, dest='nBeams', help="number of beams", default=64);
 parser.add_argument("-c", type=int, dest='nChan', help="number of frequency channels", default=1024);
 parser.add_argument("-i", type=int, dest='nInt', help="number of time integrations", default=4096);
+parser.add_argument("-r", action="store_true", help="inject RFI");
 args = parser.parse_args();
 
 if os.path.isfile(args.outfil):
@@ -77,6 +78,7 @@ if os.path.isfile(args.outfil):
     sys.exit();
 
 print("\ngenerating synthetic DSA-like multi-beam FIL file");
+print("synthetic data written in " + args.outfil);
 print("simulating " + str(int(args.nBeams)) + " beams");
 print("injecting " + str(int(args.nChan)) + " channels per spectrum");
 print("over " + str(int(args.nInt)) + " time integrations\n");
@@ -124,11 +126,18 @@ for k in range(p1):
     spec[k] = (100./p1)*k + 50.;
     spec[-k] = (100./p1)*k + 50.;
 
+if args.r:
+    beam_r = np.random.randint(int(args.nBeams));
+    chan_r = np.random.randint(int(nChans)-2*p1)+p1;
+    print("\ninjecting RFI in beam # "+str(beam_r)+ " in channel # "+str(chan_r)+"\n");
+
 for k in range(int(args.nBeams)):
     offBeam = np.random.normal(0.,5.)*np.ones(nChans);
     print("generating beam #"+str(k+1)+" / "+str(int(args.nBeams)));
     for kk in range(int(args.nInt)):
         sptmp = (spec+np.random.normal(0.,10.,np.size(spec))+offBeam).astype('uint8');
+        if args.r and k == beam_r:
+            sptmp[chan_r] = sptmp[chan_r] + np.random.noncentral_chisquare(2,10.);
         sptmp = np.where(sptmp>255,255,sptmp);
         sptmp = np.where(sptmp<0,0,sptmp);
         sptmp.astype('uint8').tofile(outfile);
