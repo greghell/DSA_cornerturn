@@ -10,23 +10,28 @@ from pathlib import Path
 # arguments:
 # 1 : data file
 # 2 : calibration file
-# 3 : start frequency
-# 4 : filterbank file
+# 3 : start frequency in Hz
+# 4 : beam angle
+# 5 : filterbank file
 
 #fname = 'fl_0.out';
-#fname = sys.argv[1];
-fname = '/mnt/data/dsa110/T3/corr07/03dec20/fl_0.out';
+fname = sys.argv[1];
+#fname = '/mnt/data/dsa110/T3/corr07/03dec20/fl_0.out';
 
 # first argument is calibration file
-#calfl = sys.argv[2]
-calfl = '/home/user/beamformer_weights/beamformer_weights_corr01.dat';
+calfl = sys.argv[2]
+#calfl = '/home/user/beamformer_weights/beamformer_weights_corr01.dat';
 
 # second argument is frequency of native resolution channel 1
-#f = float(sys.argv[3]) # in Hz
-f = 1498.75;
+f = float(sys.argv[3]) # in Hz
+#f = 1498.75;
 
-#filfile = sys.argv[4]; # filterbank file
-filfile = '/home/user/beamformer_test/test.fil';
+# some definitions
+#beampos = 1.0 # degrees east
+beampos = float(sys.argv[4]);
+
+filfile = sys.argv[5]; # filterbank file
+#filfile = '/home/user/beamformer_test/test.fil';
 
 
 
@@ -37,9 +42,6 @@ nPackets = int(nSam / blksize);
 data = np.zeros((24,384,2,2),dtype=np.complex64);
 
 ################ compute beamformer weights ########################
-
-# some definitions
-beampos = 1.0 # degrees east
 
 # read in calibration file
 def read_bf(fl):
@@ -140,10 +142,11 @@ fhead = {b'telescope_id': b'66',    # DSA
   b'data_type': b'1',       # look into that
   b'nchans': str(384).encode(), # 2**18 for < 1Hz resolution at 200./1024. MHz sampling
   b'machine_id': b'99', # ??
-  b'tsamp': str(16*8*8.196e-6).encode(),
-  b'foff': str(30.5e3).encode(),
+  b'tsamp': str(4*8.192e-6).encode(),
+  b'foff': str(-0.03051757812).encode(),
   b'nbeams': b'1',
-  b'fch1': str(f).encode(),
+  b'fch1': str(f*1e-6).encode(),
+  b'tstart': str(55000.0).encode(),
   b'nifs': b'1'}
 
 header_string = b''
@@ -164,12 +167,18 @@ outfile.write(header_string);
 for bloc in range(nPackets):
 
     print('sample '+str(bloc)+' / '+str(nPackets));
-    sig = np.fromfile(fname,dtype=np.uint8,count=blksize);
+    sig = np.fromfile(fname,dtype=np.uint8,count=blksize,offset=bloc*blksize);
 
-    d_r = ((sig&15)<<4);
-    d_i = sig&240;
-    d_r = np.where(d_r>128.,d_r-255.,d_r);
-    d_i = np.where(d_i>128.,d_i-255.,d_i);
+    # d_r = ((sig&15)<<4);
+    # d_i = sig&240;
+    # d_r = np.where(d_r>128.,d_r-255.,d_r);
+    # d_i = np.where(d_i>128.,d_i-255.,d_i);
+    
+    d_r = ((sig&15));
+    d_i = ((sig&240)>>4);
+    d_r = np.where(d_r>7.,d_r-15.,d_r);
+    d_i = np.where(d_i>7.,d_i-15.,d_i);
+    
     d_r = d_r.astype(np.int8);
     d_i = d_i.astype(np.int8);
 
