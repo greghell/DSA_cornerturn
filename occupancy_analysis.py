@@ -66,7 +66,7 @@ plt.xlabel('frequency [MHz]');
 plt.ylabel('spectrum number');
 plt.title('flags');
 plt.subplot(224);
-plt.plot(np.linspace(fmin,fmax,nPoints),np.mean(flags,axis=0));
+plt.plot(np.linspace(fmin,fmax,nPoints),np.mean(flags,axis=0)*100.);
 plt.grid();
 plt.xlabel('frequency [MHz]');
 plt.ylabel('occupancy [%]');
