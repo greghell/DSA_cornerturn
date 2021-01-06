@@ -71,4 +71,5 @@ plt.grid();
 plt.xlabel('frequency [MHz]');
 plt.ylabel('occupancy [%]');
 plt.title('spectral occupancy');
+plt.suptitle(startstr)
 plt.show();
